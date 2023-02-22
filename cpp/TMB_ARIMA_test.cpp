@@ -28,7 +28,7 @@ Type invlink_phi(Type logit_phi) {
 template<class Type>
 vector<Type> invlink_phi(vector<Type> logit_phi) {
   return 1/(1 + exp(-logit_phi));
-}
+}< 
 
 template<class Type>
 Type AR(vector<Type> x, Type log_sigma, vector<Type> logit_phi,
