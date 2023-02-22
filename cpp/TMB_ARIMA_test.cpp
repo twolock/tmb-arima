@@ -23,11 +23,11 @@ vector<Type> make_phi(vector<Type> pac) {
 
 template<class Type>
 Type invlink_phi(Type logit_phi) {
-  return 2/(1 + exp(-logit_phi))-1;
+  return 1/(1 + exp(-logit_phi));
 }
 template<class Type>
 vector<Type> invlink_phi(vector<Type> logit_phi) {
-  return 2/(1 + exp(-logit_phi))-1;
+  return 1/(1 + exp(-logit_phi));
 }
 
 template<class Type>
@@ -76,6 +76,7 @@ Type objective_function<Type>::operator() ()
   DATA_SPARSE_MATRIX(D);
   DATA_INTEGER(constr_type);
   DATA_SCALAR(constr_sd);
+  DATA_MATRIX(IS_map);
 
   PARAMETER_VECTOR(mu);
   PARAMETER(log_sigma_mu);
@@ -86,7 +87,9 @@ Type objective_function<Type>::operator() ()
   
   Type nll = 0.0;
   nll -= ARIMA_1d0(mu, D, log_sigma_mu, logit_phi, constr_type, constr_sd);
-  nll -= sum(dnorm(y, mu, sigma_y, true));
+  
+  vector<Type> mu_IS = IS_map * mu;
+  nll -= sum(dnorm(y, mu_IS, sigma_y, true));
   nll -= dnorm(sigma_y, Type(0), Type(2), true);
   nll -= log_sigma_y;
   
