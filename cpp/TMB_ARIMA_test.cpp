@@ -4,6 +4,17 @@ using namespace Eigen;
 using namespace density;
 
 template<class Type>
+Type dpc0_rho(Type rho, Type u, Type a) {
+  Type rho_sq_diff = 1-rho*rho;
+  Type mu_rho = sqrt(-log(rho_sq_diff));
+  Type mu_u = sqrt(-log(1 - u*u));
+  Type J_rho = (sqrt(rho*rho))/(mu_rho * rho_sq_diff);
+  Type lambda = -log(a) / mu_u;
+
+  return -lambda * mu_rho + log(J_rho);
+}
+
+template<class Type>
 vector<Type> make_phi(vector<Type> pac) {
   // https://inla.r-inla-download.org/r-inla.org/doc/latent/ar.pdf
   if (pac.size() == 1) {
@@ -23,12 +34,12 @@ vector<Type> make_phi(vector<Type> pac) {
 
 template<class Type>
 Type invlink_phi(Type logit_phi) {
-  return 1/(1 + exp(-logit_phi));
+  return 2/(1 + exp(-logit_phi))-1;
 }
 template<class Type>
 vector<Type> invlink_phi(vector<Type> logit_phi) {
-  return 1/(1 + exp(-logit_phi));
-}< 
+  return 2/(1 + exp(-logit_phi))-1;
+}
 
 template<class Type>
 Type AR(vector<Type> x, Type log_sigma, vector<Type> logit_phi,
@@ -36,11 +47,18 @@ Type AR(vector<Type> x, Type log_sigma, vector<Type> logit_phi,
         Type constr_sd = 0.1, bool constr = true
 ) {
   Type sigma = exp(log_sigma);
-  vector<Type> phi = make_phi(invlink_phi(logit_phi));
+  vector<Type> pac = invlink_phi(logit_phi);
+  vector<Type> phi = make_phi(pac);
   Type res = -ARk(phi)(x/sigma);
   
   res += dnorm(sigma, Type(0), sigma_sd, true);
-  res += sum(dnorm(logit_phi, Type(0), phi_sd, true));
+  for (size_t i = 0; i < pac.size(); i++)
+  {
+    Type a = 0.5 - 0.1 * i;
+    res += dpc0_rho(pac[i], Type(0.5), a);
+    res += log(pac[i]) + log(1 - pac[i]);
+  }
+  // res += sum(dnorm(logit_phi, Type(0), phi_sd, true));
   res += log_sigma;
   
   if (constr) {
@@ -95,7 +113,8 @@ Type objective_function<Type>::operator() ()
   
   vector<Type> phi = make_phi(invlink_phi(logit_phi));
   ADREPORT(phi);
-  
+  REPORT(phi);
+
   REPORT(mu);
   
   return nll; 
